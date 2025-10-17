@@ -1,0 +1,14 @@
+[package]
+name = "tries-suggest"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# 2단계에서 사용 예정 (주석처리해두고 필요 시 해제)
+# unicode-segmentation = "1"   # 3단계
+# bumpalo = "3"                # 4단계
+# parking_lot = "0.12"         # 5단계 (RwLock 대체)
+# dashmap = "6"                # 5단계 (sharding)
+# serde = { version = "1", features = ["derive"] }     # (선택) 직렬화
+# bincode = "1"                                     # (선택)
+# criterion = "0.5"                                  # 벤치마크
