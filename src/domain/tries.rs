@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     pub children: HashMap<char, Box<Node>>,
     pub is_end: bool,
@@ -17,8 +19,17 @@ impl Node {
             frequency: 0,
         }
     }
+
+    fn count_nodes(&self) -> usize {
+        1 + self
+            .children
+            .values()
+            .map(|child| child.count_nodes())
+            .sum::<usize>()
+    }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Trie {
     root: Node,
 }
@@ -29,7 +40,11 @@ impl Trie {
     }
 
     pub fn insert(&mut self, word: &str) {
-        if word.is_empty() {
+        self.insert_with_frequency(word, 1);
+    }
+
+    pub fn insert_with_frequency(&mut self, word: &str, freq: u64) {
+        if word.is_empty() || freq == 0 {
             return;
         }
 
@@ -43,7 +58,11 @@ impl Trie {
         }
 
         cur.is_end = true;
-        cur.frequency = cur.frequency.saturating_add(1);
+        cur.frequency = cur.frequency.saturating_add(freq);
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.root.count_nodes()
     }
 
     pub fn contains(&self, word: &str) -> bool {
