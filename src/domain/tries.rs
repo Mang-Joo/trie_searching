@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap},
+};
 
 pub struct Node {
     pub children: HashMap<char, Box<Node>>,
     pub is_end: bool,
+    pub frequency: u64,
 }
 
 impl Node {
@@ -10,6 +14,7 @@ impl Node {
         Node {
             children: HashMap::new(),
             is_end: false,
+            frequency: 0,
         }
     }
 }
@@ -38,12 +43,14 @@ impl Trie {
         }
 
         cur.is_end = true;
+        cur.frequency = cur.frequency.saturating_add(1);
     }
 
     pub fn contains(&self, word: &str) -> bool {
         if word.is_empty() {
             return false;
         }
+
         self.find_node(word).map(|n| n.is_end).unwrap_or(false)
     }
 
@@ -63,6 +70,46 @@ impl Trie {
 
         Some(cur)
     }
+
+    pub fn suggest_top_k(&self, prefix: &str, k: usize) -> Vec<(String, u64)> {
+        if k == 0 {
+            return vec![];
+        }
+
+        let start = match self.find_node(prefix) {
+            Some(n) => n,
+            None => return vec![],
+        };
+
+        let mut heap: BinaryHeap<(Reverse<u64>, String)> = BinaryHeap::new();
+
+        let mut stack: Vec<(String, &Node)> = vec![(prefix.to_string(), start)];
+
+        while let Some((acc, node)) = stack.pop() {
+            if node.is_end {
+                let key = (Reverse(node.frequency), acc.clone());
+                heap.push(key);
+                if heap.len() > k {
+                    heap.pop();
+                }
+            }
+            for (ch, child) in node.children.iter() {
+                let mut next = acc.clone();
+                next.push(*ch);
+                stack.push((next, child));
+            }
+        }
+
+        let mut items: Vec<(u64, String)> = heap
+            .into_vec()
+            .into_iter()
+            .map(|(Reverse(freq), word)| (freq, word))
+            .collect();
+
+        items.sort_by(|(f1, w1), (f2, w2)| f2.cmp(f1).then_with(|| w1.cmp(w2)));
+
+        items.into_iter().map(|(f, w)| (w, f)).collect()
+    }
 }
 
 #[cfg(test)]
@@ -72,23 +119,33 @@ mod tests {
     #[test]
     fn basic_ops() {
         let mut t = Trie::new();
-        for w in ["han", "hanpass", "hangul", "handy"] {
+        for w in ["han", "hankook", "hangul", "handy"] {
             t.insert(w);
         }
-
         assert!(t.contains("han"));
-        assert!(t.contains("hanpass"));
+        assert!(t.contains("hankook"));
         assert!(!t.contains("hap"));
         assert!(t.starts_with("han"));
-        assert!(!t.contains("hap"));
-        assert!(t.contains(""));
+        assert!(!t.starts_with("hap"));
+        assert!(t.starts_with(""));
     }
 
     #[test]
-    fn empty_is_not_inserted() {
+    fn frequency_and_topk() {
         let mut t = Trie::new();
-        t.insert("");
-        assert!(!t.contains(""));
-        assert!(t.starts_with(""));
+        t.insert("hankook");
+        t.insert("hankook");
+        t.insert("handy");
+        t.insert("hangul");
+        t.insert("hangul");
+        t.insert("hangul");
+
+        // 현재 빈도: hangul=3, hankook=2, handy=1
+        let got = t.suggest_top_k("han", 2);
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].0, "hangul");
+        assert_eq!(got[0].1, 3);
+        assert_eq!(got[1].0, "hankook");
+        assert_eq!(got[1].1, 2);
     }
 }
